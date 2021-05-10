@@ -3,10 +3,14 @@ const app = express()
 
 
 function validate_repo_token(req, res, next) {
-	if (req.header('REPO-TOKEN') !== '2948288382838DE' || !req.get('CI-BUILD-ID') || !req.get('CI-INSTANCE-ID')) {
-		return res.sendStatus(400)
+	if (req.path == '/') {
+		return next();
 	}
-	console.log(req.path, req.get('CI-BUILD-ID'), req.get('CI-INSTANCE-ID'), req.header('REPO-TOKEN'))
+	if (req.get('REPO-TOKEN') !== '2948288382838DE' || !req.get('CI-BUILD-ID') || !req.get('CI-INSTANCE-ID')) {
+		console.log(`${req.path} | CI-BUILD-ID: ${req.get('CI-BUILD-ID')} | CI-INSTANCE-ID: ${req.get('CI-INSTANCE-ID')} | REPO-TOKEN: ${req.get('REPO-TOKEN')}`)
+		res.statusMessage = 'Validation Error. Required headers are missing';
+		return res.status(400).send('Validation Error. Required headers are missing!');
+	}
 	next()
 }
 
@@ -18,7 +22,6 @@ const test_map = {}
 
 
 function get_ci_build_id(req) {
-	console.log(req.get('CI-BUILD-ID'))
 	return req.get('CI-BUILD-ID');
 }
 
@@ -26,11 +29,13 @@ function get_ci_instance_id(req) {
 	return req.get('CI-INSTANCE-ID');
 }
 
+app.get('/', (req, res) => {
+	return res.send('Online!')
+})
+
 app.get('/register-instance', (req, res) => {
 	const build_id = get_ci_build_id(req)
 	const instance_id = get_ci_instance_id(req)
-	console.log(req.body)
-
 	if (!test_map[build_id] || test_map[build_id].test_spec_list.length === 0) {
 		test_map[build_id] = {
 			instance_map: {},
@@ -44,12 +49,14 @@ app.get('/register-instance', (req, res) => {
 		// consider first registered instance as master
 		is_master: Object.keys(test_map[build_id].instance_map).length === 0
 	}
+	console.log(test_map[build_id].instance_map[instance_id], instance_id)
 	res.send(test_map[build_id].instance_map[instance_id])
 })
 
 app.get('/get-next-test-spec', (req, res) => {
 	const build_id = get_ci_build_id(req)
 	const instance_id = get_ci_instance_id(req)
+	console.log('---', test_map[build_id].instance_map[instance_id], instance_id, test_map[build_id].instance_map)
 	let next_test = test_map[build_id].test_spec_list.shift();
 	test_map[build_id].instance_map[instance_id].test_list.push(next_test);
 
