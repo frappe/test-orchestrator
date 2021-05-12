@@ -1,6 +1,7 @@
 const express = require('express')
 const app = express()
 
+const schedule = require('node-schedule');
 
 function validate_repo_token(req, res, next) {
 	if (req.path == '/') {
@@ -18,8 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(validate_repo_token);
 
-const test_map = {}
-
+const test_map = {};
 
 function get_ci_build_id(req) {
 	return req.get('CI-BUILD-ID');
@@ -39,6 +39,7 @@ app.get('/register-instance', (req, res) => {
 	if (!test_map[build_id] || test_map[build_id].test_spec_list.length === 0) {
 		test_map[build_id] = {
 			instance_map: {},
+			created_on: new Date(),
 			test_spec_list: req.body.test_spec_list
 		}
 	}
@@ -91,6 +92,19 @@ app.get('/test-status', (req, res) => {
 		test_status: test_ongoing ? 'ongoing': 'done'
 	})
 })
+
+const job = schedule.scheduleJob('0 0 * * *', () => {
+	let date = new Date();
+	date.setHours(date.getHours() - 5);
+	console.log('---');
+	Object.keys(test_map).forEach(build_id => {
+		if (test_map[build_id].created_on < date || !test_map[build_id].test_spec_list.length) {
+			console.log(`Cleaning data of build ID: ${build_id}`)
+			delete test_map[build_id];
+		}
+	})
+	console.log('---');
+});
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`Server running on port ${port}!`))
