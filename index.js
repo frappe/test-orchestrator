@@ -50,14 +50,12 @@ app.get('/register-instance', (req, res) => {
 		// consider first registered instance as master
 		is_master: Object.keys(test_map[build_id].instance_map).length === 0
 	}
-	console.log(test_map[build_id].instance_map[instance_id], instance_id)
 	res.send(test_map[build_id].instance_map[instance_id])
 })
 
 app.get('/get-next-test-spec', (req, res) => {
 	const build_id = get_ci_build_id(req)
 	const instance_id = get_ci_instance_id(req)
-	console.log('---', test_map[build_id].instance_map[instance_id], instance_id, test_map[build_id].instance_map)
 	let next_test = test_map[build_id].test_spec_list.shift();
 	test_map[build_id].instance_map[instance_id].test_list.push(next_test);
 
