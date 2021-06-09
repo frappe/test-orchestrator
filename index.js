@@ -4,7 +4,7 @@ const app = express()
 const schedule = require('node-schedule');
 
 function validate_repo_token(req, res, next) {
-	if (req.path == '/') {
+	if (req.path == '/' || req.path == '/prioritize') {
 		return next();
 	}
 	if (req.get('REPO-TOKEN') !== '2948288382838DE' || !req.get('CI-BUILD-ID') || !req.get('CI-INSTANCE-ID')) {
@@ -20,6 +20,7 @@ app.use(express.json());
 app.use(validate_repo_token);
 
 const test_map = {};
+let prioritized_files = [];
 
 function get_ci_build_id(req) {
 	return req.get('CI-BUILD-ID');
@@ -27,6 +28,13 @@ function get_ci_build_id(req) {
 
 function get_ci_instance_id(req) {
 	return req.get('CI-INSTANCE-ID');
+}
+
+function sort_by_priority(test_list) {
+	let important_tests = test_list.filter(test => prioritized_files.includes(test[1]));
+	let remaining_tests = test_list.filter(test => !(prioritized_files.includes(test[1])));
+
+    return important_tests.concat(remaining_tests);
 }
 
 app.get('/', (req, res) => {
@@ -40,7 +48,7 @@ app.get('/register-instance', (req, res) => {
 		test_map[build_id] = {
 			instance_map: {},
 			created_on: new Date(),
-			test_spec_list: req.body.test_spec_list
+			test_spec_list: sort_by_priority(req.body.test_spec_list)
 		}
 	}
 
@@ -91,6 +99,21 @@ app.get('/test-status', (req, res) => {
 	})
 })
 
+app.get('/prioritize', (req, res) => {
+	// add a test file to list of prioritzed files
+	// e.g. curl host/prioritize-test?filename=test_smtp.py&action=ADD
+	const filename = req.query.filename;
+	if (req.query.action === "ADD") {
+		prioritized_files.push(filename);
+		res.send(`Priorizing ${filename}\n`);
+	} else if (req.query.action === "REMOVE") {
+		prioritized_files = prioritized_files.filter(file => file !== filename)
+		res.send(`Removing priority for ${filename}\n`);
+	} else {
+		res.send('Unknown command');
+	}
+})
+
 const job = schedule.scheduleJob('0 0 * * *', () => {
 	let date = new Date();
 	date.setHours(date.getHours() - 5);
@@ -101,6 +124,7 @@ const job = schedule.scheduleJob('0 0 * * *', () => {
 			delete test_map[build_id];
 		}
 	})
+	prioritized_files.length = 0;  // clean up array of prioritized files
 	console.log('---');
 });
 
