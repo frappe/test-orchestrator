@@ -25,7 +25,7 @@ Before initializing tests, a test instance needs to register itself to the orche
  **Note:** Separate test list is maintained for each build id.
 
 #### Get next test to run
-Once the instance is registered, a test instance can ask for next text based on availability. Orchestrator will return one test to execute from the registered test list.
+Once the instance is registered, a test instance can ask for next test based on availability. Orchestrator will return one test to execute from the registered test list.
 
 * **URL**
 
